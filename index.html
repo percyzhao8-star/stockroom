@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockRoom — Classroom Trading Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .hero {
+      min-height: calc(100vh - 64px);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 3rem 1.5rem;
+    }
+    .hero-tag {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.35rem 0.9rem;
+      border: 1px solid rgba(0,255,136,0.25);
+      background: rgba(0,255,136,0.06);
+      font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 2rem;
+    }
+    .hero h1 {
+      font-size: clamp(3rem, 8vw, 6rem);
+      font-weight: 900; letter-spacing: -0.06em;
+      line-height: 0.95; margin-bottom: 1.5rem;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p {
+      font-size: 1rem; color: var(--text2); line-height: 1.7;
+      max-width: 480px; margin: 0 auto 3rem;
+    }
+    .cta-row {
+      display: flex; gap: 1rem; flex-wrap: wrap;
+      justify-content: center; align-items: stretch;
+    }
+    .cta-card {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 2.5rem 2rem; width: 260px;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 1rem;
+      text-decoration: none; color: var(--text);
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+    }
+    .cta-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+    .cta-card.teacher { border-color: rgba(0,255,136,0.2); }
+    .cta-card.teacher:hover { border-color: var(--accent); }
+    .cta-card.student  { border-color: rgba(68,136,255,0.2); }
+    .cta-card.student:hover  { border-color: var(--accent3); }
+    .cta-icon { font-size: 2.5rem; line-height: 1; }
+    .cta-card h2 { font-family: var(--display); font-size: 0.9rem; font-weight: 900; letter-spacing: 0.04em; }
+    .cta-card p { font-size: 0.72rem; color: var(--text2); text-align: center; line-height: 1.6; }
+    .cta-card .btn { margin-top: auto; }
+
+    .features {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+      background: var(--border); border: 1px solid var(--border);
+      max-width: 860px; margin: 5rem auto 0; overflow: hidden;
+    }
+    .feature {
+      background: var(--surface); padding: 1.75rem 1.5rem;
+    }
+    .feature-icon { font-size: 1.5rem; margin-bottom: 0.75rem; }
+    .feature h3 { font-family: var(--display); font-size: 0.75rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .feature p { font-size: 0.72rem; color: var(--text2); line-height: 1.6; }
+
+    @media (max-width: 640px) {
+      .features { grid-template-columns: 1fr; }
+      .cta-card { width: 100%; max-width: 320px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site-header">
+    <a class="logo" href="index.html">Stock<em>Room</em></a>
+    <span class="badge badge-green">Live</span>
+  </header>
+
+  <main class="hero">
+    <div class="hero-tag">
+      <span>📈</span> Classroom Stock Market Simulator
+    </div>
+
+    <h1>Real trades.<br /><span>Fake money.</span><br />Real lessons.</h1>
+
+    <p>Teachers control the market. Students buy and sell live. Everyone learns how stocks, risk, and portfolio management actually work.</p>
+
+    <div class="cta-row">
+      <a href="teacher.html" class="cta-card teacher">
+        <div class="cta-icon">🖥️</div>
+        <h2>I'm a Teacher</h2>
+        <p>Create a session, set stock prices, and watch your students trade in real time.</p>
+        <span class="btn btn-green">Start Session →</span>
+      </a>
+
+      <a href="student.html" class="cta-card student">
+        <div class="cta-icon">📱</div>
+        <h2>I'm a Student</h2>
+        <p>Enter your teacher's session code and start trading with your virtual portfolio.</p>
+        <span class="btn btn-blue">Join Session →</span>
+      </a>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">⚡</div>
+        <h3>Real-Time Sync</h3>
+        <p>Price updates push instantly to every student's screen the moment you change them.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🏆</div>
+        <h3>Live Leaderboard</h3>
+        <p>Students compete to grow their portfolio. Rankings update automatically after every trade.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎓</div>
+        <h3>Teacher Controls</h3>
+        <p>You set the price manually—great for simulating news events, earnings reports, or market crashes.</p>
+      </div>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockRoom — Student Trading</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── join screen ── */
+    .join-wrap {
+      min-height: calc(100vh - 64px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+    .join-box { width: 100%; max-width: 420px; }
+    .join-title { font-family: var(--display); font-size: 1.4rem; font-weight: 900; margin-bottom: 0.4rem; }
+    .join-sub   { font-size: 0.75rem; color: var(--text2); margin-bottom: 2rem; }
+
+    /* ── portfolio header bar ── */
+    .port-bar {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 1px; background: var(--border);
+      border: 1px solid var(--border); margin-bottom: 1rem;
+    }
+    .port-bar > * { background: var(--surface); }
+
+    /* ── trade buttons ── */
+    .trade-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    /* ── leaderboard ── */
+    .lb-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.55rem 0.5rem;
+      border-bottom: 1px solid rgba(37,37,64,0.4);
+      font-size: 0.78rem;
+    }
+    .lb-row:last-child { border: none; }
+    .lb-rank { width: 1.8rem; font-size: 0.7rem; color: var(--muted); flex-shrink: 0; }
+    .lb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-me .lb-name { color: var(--accent3); font-weight: 700; }
+    .lb-me { background: rgba(68,136,255,0.06); border-left: 2px solid var(--accent3); padding-left: calc(0.5rem - 2px); }
+
+    /* ── session ended overlay ── */
+    #endedBanner { display: none; }
+    .ended-banner { display: block; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site-header">
+    <a class="logo" href="index.html">Stock<em>Room</em></a>
+    <span class="badge badge-blue" id="headerBadge">Student</span>
+  </header>
+
+  <!-- ══════════ JOIN SCREEN ══════════ -->
+  <div id="joinView" class="join-wrap">
+    <div class="join-box">
+      <div class="join-title">Join Session</div>
+      <div class="join-sub">Enter your name and the code your teacher gave you.</div>
+
+      <div class="card">
+        <div class="field">
+          <label>Your Name</label>
+          <input type="text" id="joinName" placeholder="e.g. Alex Johnson" maxlength="30" />
+        </div>
+        <div class="field">
+          <label>Session Code</label>
+          <input type="text" class="code-input" id="joinCode" placeholder="XXXXXX" maxlength="6" />
+        </div>
+        <button class="btn btn-blue btn-full" onclick="joinSession()">Join Session →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ TRADING SCREEN ══════════ -->
+  <div id="tradeView" style="display:none;" class="page-sm">
+
+    <div id="endedBanner" class="ended-banner">
+      <div style="background:var(--accent2-dim);border:1px solid rgba(255,68,102,0.3);color:var(--accent2);padding:0.75rem 1rem;text-align:center;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;margin-bottom:1rem;">
+        ⛔ Session ended — trading is closed
+      </div>
+    </div>
+
+    <!-- Stock ticker -->
+    <div class="ticker-board mb-2">
+      <div class="ticker-symbol" id="t-symbol">—</div>
+      <div class="ticker-price flat" id="t-price">$—</div>
+      <div class="ticker-change flat" id="t-change">Waiting for teacher to set a price...</div>
+    </div>
+
+    <!-- Portfolio summary -->
+    <div class="port-bar mb-2">
+      <div class="stat-block">
+        <div class="stat-val" id="p-cash">$—</div>
+        <div class="stat-label">Cash</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-val" id="p-shares">0</div>
+        <div class="stat-label">Shares</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-val" id="p-holdings">$0.00</div>
+        <div class="stat-label">Holdings</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-val" id="p-total">$—</div>
+        <div class="stat-label">Total</div>
+      </div>
+    </div>
+
+    <!-- P&L -->
+    <div class="stat-block mb-2">
+      <div class="stat-val fz-sm" id="p-pl">—</div>
+      <div class="stat-label">Profit / Loss</div>
+    </div>
+
+    <!-- Trade panel -->
+    <div class="card mb-2">
+      <div class="card-title">Place a Trade</div>
+      <div class="field">
+        <label>Number of Shares</label>
+        <input type="number" id="sharesInput" placeholder="0" min="1" step="1" oninput="calcCost()" />
+      </div>
+      <div class="cost-preview" id="costPreview">Enter shares above to preview cost</div>
+      <div class="trade-btns">
+        <button class="btn btn-green" id="btnBuy" onclick="placeTrade('buy')" disabled>Buy</button>
+        <button class="btn btn-red"   id="btnSell" onclick="placeTrade('sell')" disabled>Sell</button>
+      </div>
+    </div>
+
+    <!-- My trade history -->
+    <div class="card mb-2">
+      <div class="card-title">My Trade History</div>
+      <div class="scrollbox" id="tradeLog">
+        <div class="empty"><div class="empty-icon">📋</div>No trades yet.</div>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="card mb-2">
+      <div class="card-title">Leaderboard</div>
+      <div id="lbList"><div class="empty pulse">Loading...</div></div>
+    </div>
+
+  </div>
+
+</div><!-- wrap -->
+
+<div id="toast"></div>
+
+<!-- Firebase SDKs -->
+<script src="firebase-config.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, get, onValue, update, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const db  = getDatabase(app);
+
+  // ─── helpers ───────────────────────────────────────────────────────────────
+  function toast(msg, type = 'ok') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.className = '', 2500);
+  }
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fmt$(n) { return '$' + Number(n || 0).toFixed(2); }
+  function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+  // ─── state ─────────────────────────────────────────────────────────────────
+  let sessionCode  = null;
+  let myId         = null;
+  let myName       = '';
+  let currentPrice = 0;
+  let prevPrice    = 0;
+  let startingCash = 10000;
+  let myCash       = 0;
+  let myShares     = 0;
+  let tradeHistory = []; // local only, for display
+  let sessionActive = true;
+
+  // ─── pre-fill code from URL param ─────────────────────────────────────────
+  const urlCode = new URLSearchParams(window.location.search).get('code');
+  if (urlCode) document.getElementById('joinCode').value = urlCode.toUpperCase();
+
+  // ─── join session ──────────────────────────────────────────────────────────
+  window.joinSession = async function() {
+    const name = document.getElementById('joinName').value.trim();
+    const code = document.getElementById('joinCode').value.trim().toUpperCase();
+    if (!name) { toast('Enter your name', 'err'); return; }
+    if (code.length < 4) { toast('Enter a valid session code', 'err'); return; }
+
+    try {
+      const snap = await get(ref(db, 'sessions/' + code));
+      if (!snap.exists()) { toast('Session not found', 'err'); return; }
+      const data = snap.val();
+      if (!data.active) { toast('That session has ended', 'err'); return; }
+
+      sessionCode  = code;
+      myId         = genId();
+      myName       = name;
+      startingCash = data.startingCash || 10000;
+      myCash       = startingCash;
+      myShares     = 0;
+      currentPrice = data.price || 0;
+
+      // Register this student in Firebase
+      await set(ref(db, `sessions/${code}/students/${myId}`), {
+        id: myId, name,
+        cash: myCash,
+        shares: 0,
+        totalValue: myCash,
+        joined: Date.now()
+      });
+
+      document.getElementById('joinView').style.display = 'none';
+      document.getElementById('tradeView').style.display = '';
+      updatePortfolioUI();
+      startListening();
+      toast('Joined! Welcome, ' + name + ' 🎉');
+    } catch(e) {
+      toast('Error: ' + e.message, 'err');
+    }
+  };
+
+  // ─── realtime listener ─────────────────────────────────────────────────────
+  function startListening() {
+    onValue(ref(db, 'sessions/' + sessionCode), (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.val();
+
+      sessionActive = data.active !== false;
+      if (!sessionActive) {
+        document.getElementById('endedBanner').style.display = '';
+        document.getElementById('btnBuy').disabled  = true;
+        document.getElementById('btnSell').disabled = true;
+      }
+
+      // Sync price
+      const newPrice = data.price || 0;
+      if (newPrice !== currentPrice) {
+        prevPrice    = currentPrice;
+        currentPrice = newPrice;
+        updateTickerUI(data.ticker || '—', newPrice);
+      }
+
+      // Sync my portfolio from server (in case of reset)
+      const me = (data.students || {})[myId];
+      if (me) {
+        myCash   = me.cash ?? myCash;
+        myShares = me.shares ?? myShares;
+      }
+
+      updatePortfolioUI();
+      renderLeaderboard(data);
+    });
+  }
+
+  // ─── place trade ───────────────────────────────────────────────────────────
+  window.placeTrade = async function(type) {
+    if (!sessionActive) { toast('Session has ended', 'err'); return; }
+    const shares = parseInt(document.getElementById('sharesInput').value);
+    if (!shares || shares <= 0) { toast('Enter a valid number of shares', 'err'); return; }
+    if (currentPrice <= 0) { toast('Wait for teacher to set a price', 'err'); return; }
+
+    const cost = shares * currentPrice;
+
+    if (type === 'buy') {
+      if (cost > myCash) { toast(`Not enough cash — need ${fmt$(cost)}`, 'err'); return; }
+      myCash   -= cost;
+      myShares += shares;
+      tradeHistory.unshift({ type: 'buy', shares, price: currentPrice, total: cost, time: new Date().toLocaleTimeString() });
+      toast(`Bought ${shares} share${shares>1?'s':''} for ${fmt$(cost)}`);
+    } else {
+      if (myShares < shares) { toast(`You only have ${myShares} shares`, 'err'); return; }
+      myCash   += cost;
+      myShares -= shares;
+      tradeHistory.unshift({ type: 'sell', shares, price: currentPrice, total: cost, time: new Date().toLocaleTimeString() });
+      toast(`Sold ${shares} share${shares>1?'s':''} for ${fmt$(cost)}`);
+    }
+
+    const totalValue = myCash + myShares * currentPrice;
+
+    // Write to Firebase
+    const updates = {};
+    updates[`sessions/${sessionCode}/students/${myId}/cash`]       = myCash;
+    updates[`sessions/${sessionCode}/students/${myId}/shares`]     = myShares;
+    updates[`sessions/${sessionCode}/students/${myId}/totalValue`] = totalValue;
+    updates[`sessions/${sessionCode}/totalTrades`] = Date.now(); // triggers server-side increment alternative (we'll just set timestamp as dirty flag)
+
+    // Increment totalTrades properly
+    const tSnap = await get(ref(db, `sessions/${sessionCode}/totalTrades`));
+    const tCount = typeof tSnap.val() === 'number' ? tSnap.val() + 1 : 1;
+    updates[`sessions/${sessionCode}/totalTrades`] = tCount;
+
+    await update(ref(db), updates);
+
+    document.getElementById('sharesInput').value = '';
+    document.getElementById('costPreview').textContent = 'Enter shares above to preview cost';
+    updatePortfolioUI();
+    renderTradeLog();
+  };
+
+  // ─── calc cost preview ─────────────────────────────────────────────────────
+  window.calcCost = function() {
+    const shares = parseInt(document.getElementById('sharesInput').value) || 0;
+    const el = document.getElementById('costPreview');
+    if (!shares || shares <= 0 || currentPrice <= 0) {
+      el.innerHTML = 'Enter shares above to preview cost';
+      return;
+    }
+    const cost = shares * currentPrice;
+    const canAfford = cost <= myCash;
+    el.innerHTML = `${shares} share${shares>1?'s':''} × ${fmt$(currentPrice)} = <strong>${fmt$(cost)}</strong>` +
+      (!canAfford ? ' <span class="warn">⚠ insufficient cash</span>' : '');
+  };
+
+  // ─── update ticker UI ──────────────────────────────────────────────────────
+  function updateTickerUI(ticker, price) {
+    document.getElementById('t-symbol').textContent = ticker;
+    document.getElementById('t-price').textContent  = price > 0 ? fmt$(price) : '$—';
+
+    const chgEl    = document.getElementById('t-change');
+    const priceEl  = document.getElementById('t-price');
+
+    if (prevPrice > 0 && price > 0) {
+      const pct = ((price - prevPrice) / prevPrice * 100).toFixed(2);
+      const dir = parseFloat(pct) >= 0 ? 'up' : 'down';
+      chgEl.textContent  = (pct >= 0 ? '▲ +' : '▼ ') + Math.abs(pct) + '% from ' + fmt$(prevPrice);
+      chgEl.className    = 'ticker-change ' + dir;
+      priceEl.className  = 'ticker-price ' + dir;
+    } else if (price > 0) {
+      chgEl.textContent  = 'Market is open!';
+      chgEl.className    = 'ticker-change up';
+      priceEl.className  = 'ticker-price up';
+    }
+  }
+
+  // ─── update portfolio UI ───────────────────────────────────────────────────
+  function updatePortfolioUI() {
+    const holdings = myShares * currentPrice;
+    const total    = myCash + holdings;
+    const pl       = total - startingCash;
+    const plPct    = startingCash > 0 ? ((pl / startingCash) * 100).toFixed(2) : '0.00';
+    const plClass  = pl > 0 ? 'profit' : pl < 0 ? 'loss' : 'flat-c';
+
+    document.getElementById('p-cash').textContent     = fmt$(myCash);
+    document.getElementById('p-shares').textContent   = myShares;
+    document.getElementById('p-holdings').textContent = fmt$(holdings);
+    document.getElementById('p-total').textContent    = fmt$(total);
+    document.getElementById('p-pl').innerHTML =
+      `<span class="${plClass}">${pl >= 0 ? '+' : ''}${fmt$(pl)} (${pl >= 0 ? '+' : ''}${plPct}%)</span>`;
+
+    if (sessionActive) {
+      document.getElementById('btnBuy').disabled  = currentPrice <= 0;
+      document.getElementById('btnSell').disabled = currentPrice <= 0 || myShares === 0;
+    }
+  }
+
+  // ─── render trade log ──────────────────────────────────────────────────────
+  function renderTradeLog() {
+    const el = document.getElementById('tradeLog');
+    if (!tradeHistory.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No trades yet.</div>';
+      return;
+    }
+    el.innerHTML = tradeHistory.slice(0, 30).map(t => `
+      <div class="tl-item">
+        <span><span class="tl-${t.type}">${t.type.toUpperCase()}</span> ${t.shares} share${t.shares>1?'s':''} @ ${fmt$(t.price)}</span>
+        <span>${t.type==='buy'?'−':'+'}${fmt$(t.total)} <span class="fz-xs">${t.time}</span></span>
+      </div>`).join('');
+  }
+
+  // ─── render leaderboard ────────────────────────────────────────────────────
+  function renderLeaderboard(data) {
+    const students = Object.values(data.students || {});
+    const sorted = students.sort((a, b) => (b.totalValue || b.cash || 0) - (a.totalValue || a.cash || 0));
+    const el = document.getElementById('lbList');
+    const medals = ['🥇','🥈','🥉'];
+    if (!sorted.length) { el.innerHTML = '<div class="empty">No other students yet.</div>'; return; }
+    el.innerHTML = sorted.slice(0, 10).map((s, i) => {
+      const isMe = s.id === myId;
+      const total = s.totalValue ?? s.cash ?? startingCash;
+      return `<div class="lb-row ${isMe ? 'lb-me' : ''}">
+        <span class="lb-rank">${medals[i] || (i+1)}</span>
+        <span class="lb-name">${esc(s.name)}${isMe ? ' <span style="font-size:0.6rem;color:var(--accent3)">(you)</span>' : ''}</span>
+        <span class="fw-bold">${fmt$(total)}</span>
+      </div>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockRoom — Teacher Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .dashboard { display: grid; grid-template-columns: 340px 1fr; gap: 1rem; align-items: start; }
+
+    .sidebar > * + * { margin-top: 1rem; }
+    .main-col > * + * { margin-top: 1rem; }
+
+    .session-setup { padding: 2rem 0; max-width: 500px; margin: 0 auto; }
+    .setup-title { font-family: var(--display); font-size: 1.5rem; font-weight: 900; margin-bottom: 0.5rem; }
+    .setup-sub { font-size: 0.8rem; color: var(--text2); margin-bottom: 2rem; }
+
+    .price-big { font-family: var(--display); font-size: 2.8rem; font-weight: 900; line-height: 1; }
+    .price-big.up { color: var(--accent); }
+    .price-big.down { color: var(--accent2); }
+    .price-big.flat { color: var(--text); }
+
+    .stock-header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .stock-ticker-label { font-family: var(--display); font-size: 1.1rem; font-weight: 900; color: var(--muted); letter-spacing: 0.12em; }
+    .stock-change-pill { padding: 0.2rem 0.6rem; font-size: 0.75rem; font-weight: 700; }
+    .stock-change-pill.up  { background: var(--accent-dim); color: var(--accent); }
+    .stock-change-pill.down{ background: var(--accent2-dim); color: var(--accent2); }
+
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; animation: pulse 2s infinite; box-shadow: 0 0 8px var(--accent); }
+
+    .copy-btn { font-size: 0.65rem; color: var(--muted); cursor: pointer; padding: 0.2rem 0.5rem; border: 1px solid var(--border2); background: none; font-family: var(--font); }
+    .copy-btn:hover { color: var(--text); }
+
+    .round-badge {
+      display: inline-flex; align-items: center;
+      font-family: var(--display); font-size: 0.7rem; font-weight: 700;
+      padding: 0.3rem 0.8rem; background: var(--accent3-dim);
+      border: 1px solid rgba(68,136,255,0.25); color: var(--accent3);
+    }
+
+    .danger-zone { border-color: rgba(255,68,102,0.2); }
+    .danger-zone .card-title { color: rgba(255,68,102,0.6); }
+
+    @media (max-width: 900px) {
+      .dashboard { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site-header">
+    <a class="logo" href="index.html">Stock<em>Room</em></a>
+    <span class="badge badge-green" id="headerBadge">Teacher</span>
+  </header>
+
+  <!-- ══════════ SESSION SETUP ══════════ -->
+  <div id="setupView" class="page">
+    <div class="session-setup">
+      <div class="setup-title">Start a New Session</div>
+      <div class="setup-sub">Students will join using a 6-character code. You control all stock prices.</div>
+
+      <div class="card">
+        <div class="field">
+          <label>Session / Class Name</label>
+          <input type="text" id="setupName" placeholder="e.g. Period 3 — Economics" maxlength="40" />
+        </div>
+        <div class="field">
+          <label>Starting Cash per Student ($)</label>
+          <input type="number" id="setupCash" value="10000" min="100" step="100" />
+        </div>
+        <div class="field">
+          <label>Teacher Password (to protect your dashboard)</label>
+          <input type="password" id="setupPass" placeholder="optional but recommended" />
+        </div>
+        <button class="btn btn-green btn-full" onclick="createSession()">Create Session →</button>
+      </div>
+
+      <div style="margin-top:1.5rem;" class="card">
+        <div class="card-title">Rejoin Existing Session</div>
+        <div class="field">
+          <label>Session Code</label>
+          <input type="text" class="code-input" id="rejoinCode" placeholder="XXXXXX" maxlength="6" />
+        </div>
+        <div class="field">
+          <label>Teacher Password</label>
+          <input type="password" id="rejoinPass" placeholder="" />
+        </div>
+        <button class="btn btn-ghost btn-full" onclick="rejoinSession()">Rejoin →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ ACTIVE DASHBOARD ══════════ -->
+  <div id="dashView" style="display:none;" class="page">
+
+    <!-- Top stats bar -->
+    <div class="grid-4 mb-2" id="statsBar">
+      <div class="stat-block">
+        <div class="stat-val" id="s-students">0</div>
+        <div class="stat-label">Students Online</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-val" id="s-trades">0</div>
+        <div class="stat-label">Total Trades</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-val" id="s-round">1</div>
+        <div class="stat-label">Round</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-val" style="color:var(--accent);font-size:1.1rem;letter-spacing:0.2em;" id="s-code">—</div>
+        <div class="stat-label">Session Code</div>
+      </div>
+    </div>
+
+    <div class="dashboard">
+
+      <!-- ── SIDEBAR ── -->
+      <aside class="sidebar">
+
+        <!-- Stock control -->
+        <div class="card">
+          <div class="card-title">Stock Control</div>
+
+          <div class="stock-header">
+            <span class="stock-ticker-label" id="d-ticker">—</span>
+            <span class="price-big flat" id="d-price">$—</span>
+            <span class="stock-change-pill" id="d-change" style="display:none"></span>
+          </div>
+
+          <div class="field">
+            <label>Ticker Symbol / Name</label>
+            <input type="text" id="ctrl-ticker" placeholder="e.g. AAPL" maxlength="10" />
+          </div>
+          <div class="flex-row mb-2">
+            <div class="field">
+              <label>New Price ($)</label>
+              <input type="number" id="ctrl-price" placeholder="0.00" min="0.01" step="0.01" />
+            </div>
+            <button class="btn btn-green" onclick="updatePrice()" style="height:44px; margin-top:auto;">Update</button>
+          </div>
+        </div>
+
+        <!-- Session code + join link -->
+        <div class="card">
+          <div class="card-title">
+            <span class="status-dot"></span> &nbsp;Live Session
+          </div>
+          <div class="big-code" id="codeDisplay">—</div>
+          <div class="big-code-label">Session Code — share with students</div>
+          <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+            <button class="btn btn-outline-green" style="flex:1;" onclick="copyCode()">Copy Code</button>
+            <button class="btn btn-ghost" style="flex:1;" onclick="copyLink()">Copy Link</button>
+          </div>
+          <div class="fz-xs mt-1 text-center" id="joinUrlDisplay"></div>
+        </div>
+
+        <!-- Round + session controls -->
+        <div class="card">
+          <div class="card-title">Session Controls</div>
+          <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+            <span class="round-badge">ROUND <span id="roundNum">1</span></span>
+            <button class="btn btn-ghost" onclick="nextRound()" style="flex:1;">Next Round ▶</button>
+          </div>
+          <button class="btn btn-ghost btn-full" onclick="resetPortfolios()" style="margin-bottom:0.5rem;">Reset All Portfolios 🔄</button>
+        </div>
+
+        <!-- End session (danger) -->
+        <div class="card danger-zone">
+          <div class="card-title">End Session</div>
+          <p style="font-size:0.72rem; color:var(--text2); margin-bottom:1rem;">Students will no longer be able to trade. The session data is preserved.</p>
+          <button class="btn btn-red btn-full" onclick="endSession()">End Session ✕</button>
+        </div>
+
+      </aside>
+
+      <!-- ── MAIN COL ── -->
+      <div class="main-col">
+
+        <!-- Price history -->
+        <div class="card">
+          <div class="card-title">Price History</div>
+          <div class="scrollbox" id="priceHistory">
+            <div class="empty"><div class="empty-icon">📊</div>No price updates yet.</div>
+          </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="card">
+          <div class="card-title">Leaderboard</div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Student</th>
+                <th>Shares</th>
+                <th>Cash</th>
+                <th>Holdings</th>
+                <th>Total Value</th>
+                <th>P / L</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard">
+              <tr><td colspan="7" class="empty"><div class="empty-icon">👥</div>No students yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div><!-- wrap -->
+
+<div id="toast"></div>
+
+<!-- Firebase SDKs -->
+<script src="firebase-config.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const db  = getDatabase(app);
+
+  // ─── helpers ───────────────────────────────────────────────────────────────
+  function toast(msg, type = 'ok') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.className = '', 2500);
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function fmt$(n) { return '$' + Number(n || 0).toFixed(2); }
+
+  function genCode() {
+    const ch = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let c = '';
+    for (let i = 0; i < 6; i++) c += ch[Math.floor(Math.random() * ch.length)];
+    return c;
+  }
+
+  // ─── state ─────────────────────────────────────────────────────────────────
+  let sessionCode = null;
+  let currentPrice = 0;
+  let prevPrice = 0;
+  let startingCash = 10000;
+  let unsubscribe = null;
+
+  // ─── create session ────────────────────────────────────────────────────────
+  window.createSession = async function() {
+    const name = document.getElementById('setupName').value.trim() || 'Class Session';
+    const cash = parseFloat(document.getElementById('setupCash').value) || 10000;
+    const pass = document.getElementById('setupPass').value.trim();
+    const code = genCode();
+
+    const sessionData = {
+      code, name, pass,
+      startingCash: cash,
+      ticker: '', price: 0,
+      round: 1, totalTrades: 0,
+      students: {}, priceHistory: [],
+      active: true, created: Date.now()
+    };
+
+    try {
+      await set(ref(db, 'sessions/' + code), sessionData);
+      sessionCode = code;
+      startingCash = cash;
+      localStorage.setItem('sr_session', JSON.stringify({ code, pass }));
+      launchDash();
+      toast('Session created! Code: ' + code);
+    } catch(e) {
+      toast('Error creating session: ' + e.message, 'err');
+    }
+  };
+
+  // ─── rejoin ────────────────────────────────────────────────────────────────
+  window.rejoinSession = async function() {
+    const code = document.getElementById('rejoinCode').value.trim().toUpperCase();
+    const pass = document.getElementById('rejoinPass').value.trim();
+    if (!code) { toast('Enter a session code', 'err'); return; }
+
+    try {
+      const snap = await get(ref(db, 'sessions/' + code));
+      if (!snap.exists()) { toast('Session not found', 'err'); return; }
+      const data = snap.val();
+      if (data.pass && data.pass !== pass) { toast('Wrong password', 'err'); return; }
+      sessionCode = code;
+      startingCash = data.startingCash || 10000;
+      currentPrice = data.price || 0;
+      localStorage.setItem('sr_session', JSON.stringify({ code, pass }));
+      launchDash();
+    } catch(e) {
+      toast('Error: ' + e.message, 'err');
+    }
+  };
+
+  // ─── launch dashboard ──────────────────────────────────────────────────────
+  function launchDash() {
+    document.getElementById('setupView').style.display = 'none';
+    document.getElementById('dashView').style.display = '';
+    document.getElementById('s-code').textContent = sessionCode;
+    document.getElementById('codeDisplay').textContent = sessionCode;
+
+    const base = window.location.href.replace('teacher.html','');
+    const joinUrl = base + 'student.html?code=' + sessionCode;
+    document.getElementById('joinUrlDisplay').textContent = joinUrl;
+
+    startListening();
+  }
+
+  // ─── realtime listener ─────────────────────────────────────────────────────
+  function startListening() {
+    if (unsubscribe) unsubscribe();
+    const sessionRef = ref(db, 'sessions/' + sessionCode);
+    unsubscribe = onValue(sessionRef, (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.val();
+      renderDash(data);
+    });
+  }
+
+  // ─── render dashboard ──────────────────────────────────────────────────────
+  function renderDash(data) {
+    // stats
+    const students = Object.values(data.students || {});
+    document.getElementById('s-students').textContent = students.length;
+    document.getElementById('s-trades').textContent   = data.totalTrades || 0;
+    document.getElementById('s-round').textContent    = data.round || 1;
+    document.getElementById('roundNum').textContent   = data.round || 1;
+
+    // ticker
+    document.getElementById('d-ticker').textContent = data.ticker || '—';
+    const priceEl = document.getElementById('d-price');
+    priceEl.textContent = data.price > 0 ? fmt$(data.price) : '$—';
+
+    // change pill
+    if (prevPrice > 0 && data.price > 0 && data.price !== prevPrice) {
+      const pct = ((data.price - prevPrice) / prevPrice * 100).toFixed(2);
+      const pill = document.getElementById('d-change');
+      pill.style.display = '';
+      pill.textContent = (pct >= 0 ? '▲ +' : '▼ ') + Math.abs(pct) + '%';
+      pill.className = 'stock-change-pill ' + (pct >= 0 ? 'up' : 'down');
+      priceEl.className = 'price-big ' + (pct >= 0 ? 'up' : 'down');
+    }
+
+    // price history
+    const ph = data.priceHistory ? Object.values(data.priceHistory).reverse() : [];
+    const phEl = document.getElementById('priceHistory');
+    if (!ph.length) {
+      phEl.innerHTML = '<div class="empty"><div class="empty-icon">📊</div>No price updates yet.</div>';
+    } else {
+      phEl.innerHTML = ph.slice(0, 20).map(h => `
+        <div class="ph-item">
+          <span><strong>${esc(h.ticker)}</strong></span>
+          <span style="color:${parseFloat(h.change)>=0?'var(--accent)':'var(--accent2)'}">${parseFloat(h.change)>=0?'▲ +':'▼ '}${Math.abs(h.change)}%</span>
+          <span class="fw-bold">${fmt$(h.price)}</span>
+          <span class="ph-time">${h.time}</span>
+        </div>`).join('');
+    }
+
+    // leaderboard
+    const sorted = students.sort((a, b) => (b.totalValue || b.cash || 0) - (a.totalValue || a.cash || 0));
+    const lb = document.getElementById('leaderboard');
+    if (!sorted.length) {
+      lb.innerHTML = '<tr><td colspan="7" class="empty"><div class="empty-icon">👥</div>Waiting for students...</td></tr>';
+    } else {
+      const medals = ['🥇','🥈','🥉'];
+      lb.innerHTML = sorted.map((s, i) => {
+        const total = s.totalValue ?? s.cash ?? startingCash;
+        const pl = total - (data.startingCash || startingCash);
+        const plClass = pl > 0 ? 'profit' : pl < 0 ? 'loss' : 'flat-c';
+        const rClass = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+        const holdings = (s.shares || 0) * (data.price || 0);
+        return `<tr>
+          <td class="${rClass}">${medals[i] || (i+1)}</td>
+          <td class="${rClass} fw-bold">${esc(s.name)}</td>
+          <td>${s.shares || 0}</td>
+          <td>${fmt$(s.cash)}</td>
+          <td>${fmt$(holdings)}</td>
+          <td class="fw-bold">${fmt$(total)}</td>
+          <td class="${plClass}">${pl >= 0 ? '+' : ''}${fmt$(pl)}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+
+  // ─── update price ──────────────────────────────────────────────────────────
+  window.updatePrice = async function() {
+    const ticker = (document.getElementById('ctrl-ticker').value.trim().toUpperCase()) || 'STOCK';
+    const price = parseFloat(document.getElementById('ctrl-price').value);
+    if (!price || price <= 0) { toast('Enter a valid price', 'err'); return; }
+
+    prevPrice = currentPrice;
+    currentPrice = price;
+    const change = prevPrice > 0 ? ((price - prevPrice) / prevPrice * 100).toFixed(2) : '0.00';
+
+    // Get current students to update totalValue
+    const snap = await get(ref(db, 'sessions/' + sessionCode));
+    if (!snap.exists()) return;
+    const data = snap.val();
+
+    const updates = {};
+    updates['sessions/' + sessionCode + '/ticker'] = ticker;
+    updates['sessions/' + sessionCode + '/price']  = price;
+
+    // Push to price history (array-like using timestamp key)
+    const phKey = Date.now();
+    updates['sessions/' + sessionCode + '/priceHistory/' + phKey] = {
+      ticker, price, change, time: new Date().toLocaleTimeString()
+    };
+
+    // Update each student's totalValue
+    const students = data.students || {};
+    for (const sid in students) {
+      const s = students[sid];
+      const tv = (s.cash || 0) + ((s.shares || 0) * price);
+      updates['sessions/' + sessionCode + '/students/' + sid + '/totalValue'] = tv;
+    }
+
+    try {
+      await update(ref(db), updates);
+      document.getElementById('ctrl-ticker').value = ticker;
+      toast(`${ticker} → ${fmt$(price)}`);
+    } catch(e) {
+      toast('Error: ' + e.message, 'err');
+    }
+  };
+
+  // ─── next round ────────────────────────────────────────────────────────────
+  window.nextRound = async function() {
+    const snap = await get(ref(db, 'sessions/' + sessionCode + '/round'));
+    const round = (snap.val() || 1) + 1;
+    await update(ref(db, 'sessions/' + sessionCode), { round });
+    toast('Round ' + round + ' started!');
+  };
+
+  // ─── reset portfolios ──────────────────────────────────────────────────────
+  window.resetPortfolios = async function() {
+    if (!confirm('Reset all student portfolios to starting cash? This cannot be undone.')) return;
+    const snap = await get(ref(db, 'sessions/' + sessionCode));
+    if (!snap.exists()) return;
+    const data = snap.val();
+    const updates = {};
+    const cash = data.startingCash || startingCash;
+    for (const sid in (data.students || {})) {
+      updates[`sessions/${sessionCode}/students/${sid}/cash`] = cash;
+      updates[`sessions/${sessionCode}/students/${sid}/shares`] = 0;
+      updates[`sessions/${sessionCode}/students/${sid}/totalValue`] = cash;
+    }
+    updates[`sessions/${sessionCode}/totalTrades`] = 0;
+    await update(ref(db), updates);
+    toast('All portfolios reset!', 'info');
+  };
+
+  // ─── end session ───────────────────────────────────────────────────────────
+  window.endSession = async function() {
+    if (!confirm('End the session? Students will no longer be able to trade.')) return;
+    await update(ref(db, 'sessions/' + sessionCode), { active: false });
+    toast('Session ended.', 'info');
+  };
+
+  // ─── copy helpers ──────────────────────────────────────────────────────────
+  window.copyCode = function() {
+    navigator.clipboard.writeText(sessionCode).then(() => toast('Code copied!'));
+  };
+  window.copyLink = function() {
+    const base = window.location.href.replace('teacher.html','');
+    navigator.clipboard.writeText(base + 'student.html?code=' + sessionCode).then(() => toast('Link copied!'));
+  };
+
+  // ─── auto-rejoin from localStorage ────────────────────────────────────────
+  const saved = localStorage.getItem('sr_session');
+  if (saved) {
+    try {
+      const { code, pass } = JSON.parse(saved);
+      document.getElementById('rejoinCode').value = code;
+      document.getElementById('rejoinPass').value = pass || '';
+    } catch(e) {}
+  }
+</script>
+</body>
+</html>
